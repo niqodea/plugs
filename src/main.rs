@@ -11,20 +11,21 @@ use walkdir::WalkDir;
 const SOCKET_PREFIX: &str = "._.";
 const SAMPLE_PREFIX: &str = ".sample.";
 
-fn plug_name_for(plug_path: &Path) -> &str {
-    plug_path.file_name().unwrap().to_str().unwrap()
+fn plug_name(plug_path: &Path) -> Result<&str, String> {
+    plug_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("invalid path".to_string())
 }
 
-fn socket_path_for(plug_path: &Path) -> PathBuf {
-    let plug_name = plug_name_for(plug_path);
-    let socket_name = format!("{SOCKET_PREFIX}{plug_name}");
-    plug_path.parent().unwrap().join(socket_name)
+fn socket_path(plug_path: &Path) -> Result<PathBuf, String> {
+    let plug_name = plug_name(plug_path)?;
+    Ok(plug_path.with_file_name(format!("{SOCKET_PREFIX}{plug_name}")))
 }
 
-fn sample_path_for(plug_path: &Path) -> PathBuf {
-    let plug_name = plug_name_for(plug_path);
-    let sample_name = format!("{SAMPLE_PREFIX}{plug_name}");
-    plug_path.parent().unwrap().join(sample_name)
+fn sample_path(plug_path: &Path) -> Result<PathBuf, String> {
+    let plug_name = plug_name(plug_path)?;
+    Ok(plug_path.with_file_name(format!("{SAMPLE_PREFIX}{plug_name}")))
 }
 
 fn validate(plug_path: &Path) -> Result<(), String> {
@@ -33,12 +34,13 @@ fn validate(plug_path: &Path) -> Result<(), String> {
     }
 
     if !plug_path.is_symlink() {
-        return Err(format!("not a symlink found at {}", plug_path.display()));
+        return Err(format!("not a symlink at {}", plug_path.display()));
     }
 
-    let plug_name = plug_name_for(plug_path);
+    let plug_name = plug_name(plug_path)?;
 
-    let plug_pointer_path = read_link(plug_path).unwrap();
+    let plug_pointer_path =
+        read_link(plug_path).map_err(|e| format!("cannot read symlink: {e}"))?;
 
     let expected_plug_pointer_path = PathBuf::from(format!("{SOCKET_PREFIX}{plug_name}"));
 
@@ -81,18 +83,14 @@ enum Commands {
         plug: PathBuf,
         #[arg(long, help = "Target path to connect to")]
         to: PathBuf,
-        #[arg(default_value_t = false, long, help = "Treat the path as relative")]
+        #[arg(long, help = "Treat the path as relative")]
         relative: bool,
     },
     #[command(about = "Disconnect plug")]
     Disconnect {
         #[arg(help = "Plug path")]
         plug: PathBuf,
-        #[arg(
-            long,
-            default_value_t = false,
-            help = "Allow deleting files and directories"
-        )]
+        #[arg(long, help = "Allow deleting files and directories")]
         delete: bool,
     },
     #[command(about = "Delete plug")]
@@ -143,7 +141,7 @@ fn main() {
             println!("{stdout}");
         }
         Err(stderr) => {
-            eprintln!("Error: {stderr}");
+            eprintln!("{stderr}");
             exit(1);
         }
     }
@@ -153,41 +151,46 @@ fn status(root: &Path) -> Result<String, String> {
     let mut output = String::new();
 
     for entry in WalkDir::new(root) {
-        let entry = entry.map_err(|e| format!("could not walk directory. {e}"))?;
+        let entry = entry.map_err(|e| format!("walk failed: {e}"))?;
 
-        let entry_path = entry.path().strip_prefix(root).unwrap();
+        let entry_path = entry
+            .path()
+            .strip_prefix(root)
+            .map_err(|e| format!("strip prefix failed: {e}"))?;
 
         if validate(entry_path).is_err() {
             continue;
         }
 
         let plug_path = entry_path;
-        let socket_path = socket_path_for(plug_path);
+        let socket_path = socket_path(plug_path)?;
 
         let target_path = if socket_path.is_symlink() {
-            Some(read_link(&socket_path).unwrap())
+            Some(read_link(&socket_path).map_err(|e| format!("cannot read socket symlink: {e}"))?)
         } else {
             None
         };
 
-        let status = match &target_path {
-            Some(path) if path.exists() => 'S',
-            Some(_) => 'X',
-            None => {
-                if socket_path.is_dir() {
-                    'D'
-                } else if socket_path.is_file() {
-                    'F'
-                } else {
-                    ' '
-                }
+        let status = if let Some(path) = &target_path {
+            if path.exists() {
+                'S'
+            } else {
+                'X'
             }
+        } else if socket_path.is_dir() {
+            'D'
+        } else if socket_path.is_file() {
+            'F'
+        } else {
+            ' '
         };
 
-        writeln!(output, "{} <- {}", status, plug_path.display()).unwrap();
+        writeln!(output, "{} <- {}", status, plug_path.display())
+            .map_err(|e| format!("write failed: {e}"))?;
 
         if let Some(path) = &target_path {
-            writeln!(output, " `-> {}", path.display()).unwrap();
+            writeln!(output, " `-> {}", path.display())
+                .map_err(|e| format!("write failed: {e}"))?;
         }
     }
 
@@ -210,8 +213,7 @@ fn create(plug_path: &Path) -> Result<String, String> {
 
     let plug_pointer_path = PathBuf::from(format!("{SOCKET_PREFIX}{plug_name}"));
 
-    symlink(&plug_pointer_path, plug_path)
-        .map_err(|e| format!("could not create symlink. {e}"))?;
+    symlink(&plug_pointer_path, plug_path).map_err(|e| format!("could not create symlink. {e}"))?;
 
     Ok(format!("Created plug at: {}", plug_path.display()))
 }
@@ -219,7 +221,7 @@ fn create(plug_path: &Path) -> Result<String, String> {
 fn connect(plug_path: &Path, target_path: &Path, relative: bool) -> Result<String, String> {
     validate(plug_path)?;
 
-    let socket_path = socket_path_for(plug_path);
+    let socket_path = socket_path(plug_path)?;
 
     if symlink_metadata(&socket_path).is_ok() {
         return Err("plug already connected".to_string());
@@ -229,22 +231,23 @@ fn connect(plug_path: &Path, target_path: &Path, relative: bool) -> Result<Strin
         return Err(format!("target does not exist: {}", target_path.display()));
     }
 
+    let parent = plug_path.parent().ok_or("plug has no parent")?;
+
     let socket_pointer_path = if relative {
         if target_path.is_absolute() {
-            return Err("target must be relative when using --relative flag".to_string());
+            return Err("target must be relative when using --relative".to_string());
         }
-        pathdiff::diff_paths(target_path, plug_path.parent().unwrap())
-            .ok_or("could not compute relative path")?
+        pathdiff::diff_paths(target_path, parent).ok_or("cannot compute relative path")?
     } else if target_path.is_relative() {
         current_dir()
-            .map_err(|e| format!("could not get current directory. {e}"))?
+            .map_err(|e| format!("cannot get current directory: {e}"))?
             .join(target_path)
     } else {
         target_path.to_path_buf()
     };
 
     symlink(&socket_pointer_path, &socket_path)
-        .map_err(|e| format!("could not create socket symlink. {e}"))?;
+        .map_err(|e| format!("cannot create socket symlink: {e}"))?;
 
     Ok(format!(
         "Connected plug\n\
@@ -258,26 +261,26 @@ fn connect(plug_path: &Path, target_path: &Path, relative: bool) -> Result<Strin
 fn disconnect(plug_path: &Path, delete: bool) -> Result<String, String> {
     validate(plug_path)?;
 
-    let socket_path = socket_path_for(plug_path);
+    let socket_path = socket_path(plug_path)?;
 
     if symlink_metadata(&socket_path).is_err() {
-        return Err(format!("unplugged, no socket at {}", socket_path.display()));
+        return Err(format!("no socket at {}", socket_path.display()));
     }
 
     if socket_path.is_symlink() {
-        remove_file(&socket_path).map_err(|e| format!("could not remove socket symlink. {e}"))?;
+        remove_file(&socket_path).map_err(|e| format!("cannot remove socket symlink: {e}"))?;
     } else if !delete {
         return Err(format!(
-            "socket is not a symlink, use --delete flag to remove {}",
+            "socket is not a symlink, use --delete to remove {}",
             socket_path.display()
         ));
     } else if socket_path.is_file() {
-        remove_file(&socket_path).map_err(|e| format!("could not remove socket file. {e}"))?;
+        remove_file(&socket_path).map_err(|e| format!("cannot remove socket file: {e}"))?;
     } else if socket_path.is_dir() {
-        remove_dir_all(&socket_path).map_err(|e| format!("could not remove directory. {e}"))?;
+        remove_dir_all(&socket_path).map_err(|e| format!("cannot remove directory: {e}"))?;
     } else {
         return Err(format!(
-            "socket file not supported: {}",
+            "unsupported socket type: {}",
             socket_path.display()
         ));
     }
@@ -288,7 +291,7 @@ fn disconnect(plug_path: &Path, delete: bool) -> Result<String, String> {
 fn delete(plug_path: &Path) -> Result<String, String> {
     validate(plug_path)?;
 
-    let socket_path = socket_path_for(plug_path);
+    let socket_path = socket_path(plug_path)?;
 
     if symlink_metadata(&socket_path).is_ok() {
         return Err(format!(
@@ -297,12 +300,12 @@ fn delete(plug_path: &Path) -> Result<String, String> {
         ));
     }
 
-    remove_file(plug_path).map_err(|e| format!("could not remove plug symlink. {e}"))?;
+    remove_file(plug_path).map_err(|e| format!("cannot remove plug symlink: {e}"))?;
 
-    let sample_path = sample_path_for(plug_path);
+    let sample_path = sample_path(plug_path)?;
 
     if symlink_metadata(&sample_path).is_ok() {
-        remove_file(&sample_path).map_err(|e| format!("could not remove sample file. {e}"))?;
+        remove_file(&sample_path).map_err(|e| format!("cannot remove sample file: {e}"))?;
     }
 
     Ok(format!("Deleted plug at {}", plug_path.display()))
@@ -311,13 +314,13 @@ fn delete(plug_path: &Path) -> Result<String, String> {
 fn connect_new_dir(plug_path: &Path) -> Result<String, String> {
     validate(plug_path)?;
 
-    let socket_path = socket_path_for(plug_path);
+    let socket_path = socket_path(plug_path)?;
 
     if symlink_metadata(&socket_path).is_ok() {
         return Err("plug already connected".to_string());
     }
 
-    create_dir(&socket_path).map_err(|e| format!("could not create directory. {e}"))?;
+    create_dir(&socket_path).map_err(|e| format!("cannot create directory: {e}"))?;
 
     Ok(format!("Initialized directory at {}", plug_path.display()))
 }
@@ -325,14 +328,14 @@ fn connect_new_dir(plug_path: &Path) -> Result<String, String> {
 fn connect_new_file(plug_path: &Path, from_sample: bool, edit: bool) -> Result<String, String> {
     validate(plug_path)?;
 
-    let socket_path = socket_path_for(plug_path);
+    let socket_path = socket_path(plug_path)?;
 
     if symlink_metadata(&socket_path).is_ok() {
         return Err("plug already connected".to_string());
     }
 
     if from_sample {
-        let sample_path = sample_path_for(plug_path);
+        let sample_path = sample_path(plug_path)?;
 
         if !sample_path.exists() {
             return Err(format!(
@@ -341,18 +344,18 @@ fn connect_new_file(plug_path: &Path, from_sample: bool, edit: bool) -> Result<S
             ));
         }
 
-        copy(&sample_path, &socket_path).map_err(|e| format!("could not copy sample file. {e}"))?;
+        copy(&sample_path, &socket_path).map_err(|e| format!("cannot copy sample file: {e}"))?;
     } else {
-        File::create(&socket_path).map_err(|e| format!("could not create socket file. {e}"))?;
+        File::create(&socket_path).map_err(|e| format!("cannot create socket file: {e}"))?;
     }
 
     if edit {
-        let editor = var("EDITOR").map_err(|_| "EDITOR environment variable must be set")?;
+        let editor = var("EDITOR").map_err(|_| "EDITOR not set")?;
 
         Command::new(&editor)
             .arg(&socket_path)
             .status()
-            .map_err(|e| format!("editing failed. {e}"))?;
+            .map_err(|e| format!("editor failed: {e}"))?;
     }
 
     Ok(format!(
@@ -364,20 +367,20 @@ fn connect_new_file(plug_path: &Path, from_sample: bool, edit: bool) -> Result<S
 fn write_sample_file(plug_path: &Path) -> Result<String, String> {
     validate(plug_path)?;
 
-    let sample_path = sample_path_for(plug_path);
+    let sample_path = sample_path(plug_path)?;
 
     if sample_path.exists() {
         return Err(format!("sample already exists: {}", sample_path.display()));
     }
 
-    let editor = var("EDITOR").map_err(|_| "EDITOR environment variable must be set")?;
+    let editor = var("EDITOR").map_err(|_| "EDITOR not set")?;
 
-    File::create(&sample_path).map_err(|e| format!("could not create sample file. {e}"))?;
+    File::create(&sample_path).map_err(|e| format!("cannot create sample file: {e}"))?;
 
     Command::new(&editor)
         .arg(&sample_path)
         .status()
-        .map_err(|e| format!("while editing. {e}"))?;
+        .map_err(|e| format!("editor failed: {e}"))?;
 
     Ok(format!("Written sample file at {}", sample_path.display()))
 }
