@@ -185,12 +185,10 @@ fn status(root: &Path) -> Result<String, String> {
             ' '
         };
 
-        writeln!(output, "{} <- {}", status, plug_path.display())
-            .map_err(|e| format!("write failed: {e}"))?;
+        let _ = writeln!(output, "{} <- {}", status, plug_path.display());
 
         if let Some(path) = &target_path {
-            writeln!(output, " `-> {}", path.display())
-                .map_err(|e| format!("write failed: {e}"))?;
+            let _ = writeln!(output, " `-> {}", path.display());
         }
     }
 
