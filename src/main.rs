@@ -213,7 +213,7 @@ fn create(plug_path: &Path) -> Result<String, String> {
 
     symlink(&plug_pointer_path, plug_path).map_err(|e| format!("cannot create symlink: {e}"))?;
 
-    Ok(format!("Created plug at: {}", plug_path.display()))
+    Ok(format!("Created plug at {}", plug_path.display()))
 }
 
 fn connect(plug_path: &Path, target_path: &Path, relative: bool) -> Result<String, String> {
@@ -269,7 +269,7 @@ fn disconnect(plug_path: &Path, delete: bool) -> Result<String, String> {
     if socket_path.is_symlink() {
         remove_file(&socket_path).map_err(|e| format!("cannot remove socket symlink: {e}"))?;
     } else if !delete {
-        return Err("plug directly connected to files, use --delete to remove".to_string());
+        return Err("would delete file or directory, use --delete".to_string());
     } else if socket_path.is_file() {
         remove_file(&socket_path).map_err(|e| format!("cannot remove socket file: {e}"))?;
     } else if socket_path.is_dir() {
@@ -316,7 +316,7 @@ fn connect_new_dir(plug_path: &Path) -> Result<String, String> {
     create_dir(&socket_path).map_err(|e| format!("cannot create directory: {e}"))?;
 
     Ok(format!(
-        "Connected new directory for plug {}",
+        "Connected new directory for plug at {}",
         plug_path.display()
     ))
 }
@@ -355,7 +355,7 @@ fn connect_new_file(plug_path: &Path, from_sample: bool, edit: bool) -> Result<S
     }
 
     Ok(format!(
-        "Connected new file for plug {}",
+        "Connected new file for plug at {}",
         plug_path.display()
     ))
 }
@@ -378,8 +378,5 @@ fn write_sample_file(plug_path: &Path) -> Result<String, String> {
         .status()
         .map_err(|e| format!("editor failed: {e}"))?;
 
-    Ok(format!(
-        "Written sample file for plug {}",
-        plug_path.display()
-    ))
+    Ok(format!("Wrote sample for {}", plug_path.display()))
 }
