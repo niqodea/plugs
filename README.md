@@ -1,155 +1,159 @@
-# Plug
+# Plugs
 
-> *Making file dependencies explicit and manageable.*
+> *Making file dependencies explicit and manageable through a symlink-based framework.*
 
-Plug offers a simple way to mark files and directories that aren't part of the repository but need to be provided locally. Instead of silently expecting files to exist, plugs make dependencies explicit through a clean symlink convention.
+Plugs offer a structured way to declare and manage file dependencies in your projects using symbolic links.
+By treating dependencies as "plugs" that can be connected to different "sockets", this framework makes external file dependencies visible, auditable, and easy to reconfigure.
 
 ## Concept
 
+Plugs make files dependencies explicit and portable:
+```
+config.json -> ._.config.json -> /etc/myapp/config.json  # plug committed, socket local
+```
+
 ### The Problem
 
-Many projects expect certain files or directories to exist locally, but these requirements are often invisible:
-- Configuration files with secrets or local paths
-- Data directories that are too large for version control
-- Machine-specific settings that vary per developer
+Many projects rely on external files that aren't part of the repository itself—configuration files in `/etc`, databases in `/var`, user-specific settings in `~/.config`, or shared resources in other directories.
+These dependencies are typically handled in one of several ways:
 
-When these files are missing, programs fail with cryptic errors. When they're present but not tracked, new contributors don't know what they need to provide.
+- **Environment variables**: Pass paths like `CONFIG_PATH=/etc/myapp/config.json` at runtime.
+  Dependencies only discovered when the program runs and fails.
+- **Expected files**: Programs simply assume files exist (like `.env` in the project root).
+  Users must somehow know to create them.
+- **Hard-coded paths**: Paths baked into the code.
+  Inflexible and environment-specific.
+- **Documentation**: README instructions listing what to create/configure.
+  Quickly becomes outdated and requires careful manual setup.
+- **Direct symlinks**: Quick to create but invisible in the repository.
+  No way to know what's supposed to be linked to what.
+- **Configuration management**: Ansible, Chef, etc.
+  Often overkill for simple file dependencies.
 
-### The Plug Solution
+The core issue is that **file dependencies are implicit**.
+When someone sets up your project, they have no systematic way to discover what external files are needed, where they should come from, or what they should contain.
+The dependency only reveals itself at runtime through an error message—or worse, silent misconfiguration.
 
-A **plug** is a symlink with the naming pattern: `foo -> ._.foo`
+### Plugs Approach
 
-- `foo` is the file/directory your program expects
-- `._.foo` is the "socket" - what you need to provide locally
+Plugs make dependencies explicit through a three-layer system:
 
-The `._.` prefix serves multiple purposes:
-- It's a dotfile (hidden by default)
-- It visually resembles a socket
-- It's clear and searchable
+1. **Plug**: A symlink named after the dependency (e.g., `config.json`) that points to a socket (`._.config.json`)
+2. **Socket**: Either the actual file/directory, or a symlink pointing to the external dependency
+3. **Sample** (optional): A sample file (`.?.config.json`) showing what the dependency should look like
 
-### Git Integration
+**How It Works**:
 
-Add `._.` to your `.gitignore`:
+1. **Declaration**: Create a plug symlink `config.json -> ._.config.json`
+2. **Connection**: Create the socket `._.config.json` as either:
+   - A symlink to an external file/directory
+   - A new local file/directory
+3. **Usage**: Your code uses `config.json` normally; the plug-socket layer is transparent
+
+Here's how a generic project looks with plugs:
+
+```
+myproject/
+│
+├─── src/
+│    ├─── config.json -> ._.config.json
+│    ├─── ._.config.json -> /etc/myapp/config.json
+│    └─── .?.config.json (sample configuration)
+│
+├─── data/
+│    ├─── database.db -> ._.database.db
+│    └─── ._.database.db -> /var/lib/myapp/db.sqlite
+│
+├─── .env -> ._.env
+├─── ._.env
+└─── .?.env (sample environment variables)
+```
+
+To create a plug manually:
+
+```sh
+# Create the plug
+ln -s ._.config.json config.json
+
+# Create the socket pointing to the external file
+ln -s /etc/myapp/config.json ._.config.json
+
+# Optionally create a sample file
+cp /etc/myapp/config.json .?.config.json
+```
+
+**Benefits**:
+
+- **Explicit dependencies**: Plugs (committed to git) declare "this file is needed here"
+- **Out-of-the-box discovery**: When cloning the repository, all plugs point to non-existent sockets, making them immediately visible with a simple command
+- **Templating**: Sample files show exactly what each dependency should contain
+- **Flexible connection**: Connect to system files, user files, or create local copies—the plug stays the same
+- **Environment independence**: Different developers/environments can connect plugs to different locations without modifying the repository
+- **Status visibility**: Easy to audit which dependencies are connected, disconnected, or broken
+
+**Naming Convention**:
+- `._.` prefix: "socket" - the connection point (gitignored, local to each environment).
+  The `._.` visually resembles a socket.
+- `.?.` prefix: "sample" - example/template (committed, shows what's expected).
+
+Both use dot-prefixes, making them hidden files that don't clutter your regular directory view while keeping them close to their plugs
+
+**Git Configuration**:
+
+Add to your `.gitignore`:
+
 ```gitignore
-._.*
+# Plug sockets (connections to actual files)
+._.* 
 ```
 
-This way you commit the plugs (the symlinks) but not the sockets (the actual files). Contributors can see exactly what needs to be provided, while keeping sensitive or local data out of version control.
+This ensures that:
+- **Plugs** (`config.json -> ._.config.json`) are committed: declarations of what's needed
+- **Sockets** (`._.config.json`) are gitignored: local connections specific to each environment
 
-### Sample Files
+## Shell Command
 
-Provide `.sample.foo` files as templates:
-```
-config -> ._.config          # Plug (committed)
-.sample.config               # Template (committed)
-._.config                    # Socket (not committed, user provides)
-```
-
-Users can copy the sample to the socket and customize it for their environment.
-
-## Tool
-
-The `plug` CLI helps manage these symlinks.
+The repository also includes a ready-to-use command `plug` that simplifies plugs management.
 
 ### Installation
 
-Build from source:
-```bash
-cargo build --release
+**Download and extract**:
+
+```sh
+wget https://github.com/niqodea/plugs/releases/download/v0.1.0/plugs-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf plugs-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
-Then copy the binary:
-```bash
-# Global installation
-sudo cp target/release/plug /usr/bin
+Then `cp` the `plug` binary to the `bin` directory.
 
-# Local installation (ensure ~/.local/bin is in PATH)
-cp target/release/plug ~/.local/bin
-```
+- **Global Installation**:
+   ```sh
+   sudo cp plug /usr/bin
+   ```
+
+- **Local Installation**:
+   First, ensure `~/.local/bin` is in your `PATH`. Then:
+   ```sh
+   cp plug ~/.local/bin
+   ```
 
 ### Usage
 
-```bash
-# List all plugs and their status
-plug list
+Refer to the command's help message:
 
-# Create a socket by linking to an existing file/directory
-plug link config /path/to/my/config
-
-# Create a socket from a sample file and open in editor
-plug sample .sample.config
-
-# Create an empty directory socket
-plug mkdir data
-```
-
-For detailed help:
-```bash
+```sh
 plug --help
 ```
 
-### Commands
+For example, to create a plug and connect it to an existing file:
 
-#### `list`
-Shows all plugs in the current directory and subdirectories:
-```
-config -> ._.config [UNPLUGGED]
-data -> ._.data [PLUGGED (directory)]
-secrets -> ._.secrets [PLUGGED (symlink) -> /home/user/.secrets]
+```sh
+plug create src/config.json
+plug connect src/config.json --to /etc/myapp/config.json
 ```
 
-Status indicators:
-- `UNPLUGGED` - Socket doesn't exist yet
-- `PLUGGED (file)` - Socket is a regular file
-- `PLUGGED (directory)` - Socket is a directory
-- `PLUGGED (symlink) -> <path>` - Socket is itself a symlink
+To check the status of all plugs in your project:
 
-#### `link`
-Creates a socket by symlinking to an existing file or directory:
-```bash
-plug link config ~/.myapp/config
-# Creates: ._.config -> /home/user/.myapp/config
-```
-
-#### `sample`
-Copies a sample file to create a socket, then opens it in your editor:
-```bash
-plug sample .sample.config
-# Creates ._.config from .sample.config
-# Opens ._.config in $EDITOR (or $VISUAL, or vi)
-```
-
-#### `mkdir`
-Creates an empty directory socket:
-```bash
-plug mkdir data
-# Creates: ._.data/ (empty directory)
-```
-
-## Example Workflow
-
-Setting up a new project with plugs:
-```bash
-# Clone the repository
-git clone https://github.com/user/project.git
-cd project
-
-# See what needs to be provided
-plug list
-# config -> ._.config [UNPLUGGED]
-# data -> ._.data [UNPLUGGED]
-
-# Create config from sample
-plug sample .sample.config
-
-# Create empty data directory
-plug mkdir data
-
-# Verify everything is plugged
-plug list
-# config -> ._.config [PLUGGED (file)]
-# data -> ._.data [PLUGGED (directory)]
-
-# Run the application
-./app
+```sh
+plug status
 ```
