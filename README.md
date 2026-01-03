@@ -1,5 +1,7 @@
 # Plugs
 
+<img align="right" src="logo.svg" width="200" align="right" alt="Plugs Logo">
+
 > *Making file dependencies explicit and manageable through a symlink-based framework.*
 
 Plugs offer a structured way to declare and manage file dependencies in your projects using symbolic links.

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Right face (darkest) -->
+  <path d="M16 8L20.5 3.5V16L16 20.5V8Z" fill="#a0a0a0" stroke="#808080" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Top face (medium gray) -->
+  <path d="M3.5 8L8 3.5L20.5 3.5L16 8H3.5Z" fill="#d0d0d0" stroke="#b0b0b0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Front face (white/light gray) -->
+  <path d="M3.5 8H16V20.5H3.5V8Z" fill="#f5f5f5" stroke="#c0c0c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Face: ._. -->
+  <!-- Left dot -->
+  <circle cx="7" cy="16.5" r="0.6" fill="#404040"/>
+  <!-- Underscore (mouth) -->
+  <line x1="8.5" y1="17.2" x2="11" y2="17.2" stroke="#404040" stroke-width="0.6" stroke-linecap="round"/>
+  <!-- Right dot -->
+  <circle cx="12.5" cy="16.5" r="0.6" fill="#404040"/>
+</svg>
