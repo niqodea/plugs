@@ -16,7 +16,7 @@ config.json -> ._.config.json -> /etc/myapp/config.json  # plug committed, socke
 
 ### The Problem
 
-Many projects rely on external files that aren't part of the repository itself—configuration files in `/etc`, databases in `/var`, user-specific settings in `~/.config`, or shared resources in other directories.
+Many projects rely on external files that aren't part of the repository itself: configuration files in `/etc`, databases in `/var`, user-specific settings in `~/.config`, or shared resources in other directories.
 These dependencies are typically handled in one of several ways:
 
 - **Environment variables**: Pass paths like `CONFIG_PATH=/etc/myapp/config.json` at runtime.
@@ -34,7 +34,7 @@ These dependencies are typically handled in one of several ways:
 
 The core issue is that **file dependencies are implicit**.
 When someone sets up your project, they have no systematic way to discover what external files are needed, where they should come from, or what they should contain.
-The dependency only reveals itself at runtime through an error message—or worse, silent misconfiguration.
+The dependency only reveals itself at runtime through an error message or silent misconfiguration.
 
 ### Plugs Approach
 
@@ -89,23 +89,24 @@ cp /etc/myapp/config.json .~.config.json
 - **Explicit dependencies**: Plugs (committed to git) declare "this file is needed here"
 - **Out-of-the-box discovery**: When cloning the repository, all plugs point to non-existent sockets, making them immediately visible with a simple command
 - **Templating**: Sample files show exactly what each dependency should contain
-- **Flexible connection**: Connect to system files, user files, or create local copies—the plug stays the same
+- **Flexible connection**: Connect to system files, user files, or create local copies; the plug stays the same
 - **Environment independence**: Different developers/environments can connect plugs to different locations without modifying the repository
 - **Status visibility**: Easy to audit which dependencies are connected, disconnected, or broken
 
 **Naming Convention**:
 - `._.` prefix: "socket" - the connection point (gitignored, local to each environment).
-  The `._.` visually resembles a socket.
 - `.~.` prefix: "sample" - example/template (committed, shows what's expected).
 
 Both use dot-prefixes, making them hidden files that don't clutter your regular directory view while keeping them close to their plugs.
+
+> *The `._.` prefix visually resembles a socket!*
 
 **Git Configuration**:
 
 Add to your `.gitignore`:
 
 ```gitignore
-# Plug sockets (connections to actual files)
+# Plug sockets
 ._.* 
 ```
 
