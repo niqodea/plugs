@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use walkdir::WalkDir;
 
 const SOCKET_PREFIX: &str = "._.";
-const SAMPLE_PREFIX: &str = ".sample.";
+const SAMPLE_PREFIX: &str = ".?.";
 
 fn plug_name(plug_path: &Path) -> Result<&str, String> {
     plug_path
