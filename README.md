@@ -69,6 +69,8 @@ project/
 └─── .~..env (sample environment variables)
 ```
 
+See `example` for a working example of this structure.
+
 To create a plug manually:
 
 ```sh
