@@ -42,7 +42,7 @@ Plugs make dependencies explicit through a three-layer system:
 
 1. **Plug**: A symlink named after the dependency (e.g., `config.json`) that points to a socket (`._.config.json`)
 2. **Socket**: Either the actual file/directory, or a symlink pointing to the external dependency
-3. **Sample** (optional): A sample file (`.?.config.json`) showing what the dependency should look like
+3. **Sample** (optional): A sample file (`.~.config.json`) showing what the dependency should look like
 
 **How It Works**:
 
@@ -55,20 +55,18 @@ Plugs make dependencies explicit through a three-layer system:
 Here's how a generic project looks with plugs:
 
 ```
-myproject/
+project/
 │
-├─── src/
-│    ├─── config.json -> ._.config.json
-│    ├─── ._.config.json -> /etc/myapp/config.json
-│    └─── .?.config.json (sample configuration)
+├─── config.json -> ._.config.json
+├─── ._.config.json -> /etc/myapp/config.json
+├─── .~.config.json (sample configuration)
 │
-├─── data/
-│    ├─── database.db -> ._.database.db
-│    └─── ._.database.db -> /var/lib/myapp/db.sqlite
+├─── database.db -> ._.database.db
+├─── ._.database.db -> /var/lib/myapp/db.sqlite
 │
-├─── .env -> ._.env
-├─── ._.env
-└─── .?.env (sample environment variables)
+├─── .env -> ._..env
+├─── ._..env
+└─── .~..env (sample environment variables)
 ```
 
 To create a plug manually:
@@ -81,7 +79,7 @@ ln -s ._.config.json config.json
 ln -s /etc/myapp/config.json ._.config.json
 
 # Optionally create a sample file
-cp /etc/myapp/config.json .?.config.json
+cp /etc/myapp/config.json .~.config.json
 ```
 
 **Benefits**:
@@ -96,9 +94,9 @@ cp /etc/myapp/config.json .?.config.json
 **Naming Convention**:
 - `._.` prefix: "socket" - the connection point (gitignored, local to each environment).
   The `._.` visually resembles a socket.
-- `.?.` prefix: "sample" - example/template (committed, shows what's expected).
+- `.~.` prefix: "sample" - example/template (committed, shows what's expected).
 
-Both use dot-prefixes, making them hidden files that don't clutter your regular directory view while keeping them close to their plugs
+Both use dot-prefixes, making them hidden files that don't clutter your regular directory view while keeping them close to their plugs.
 
 **Git Configuration**:
 
