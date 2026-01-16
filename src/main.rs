@@ -182,7 +182,7 @@ fn status(root: &Path) -> Result<String, String> {
         } else if socket_path.is_file() {
             'F'
         } else {
-            ' '
+            '?'
         };
 
         let _ = writeln!(output, "{} <- {}", status, plug_path.display());
