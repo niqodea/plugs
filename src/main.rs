@@ -188,7 +188,8 @@ fn status(root: &Path) -> Result<String, String> {
         let _ = writeln!(output, "{} <- {}", status, plug_path.display());
 
         if let Some(path) = &target_path {
-            let _ = writeln!(output, " `-> {}", path.display());
+            // Long arrow to visually distinguish targets via implicit tabulation
+            let _ = writeln!(output, " `---> {}", path.display());
         }
     }
 
