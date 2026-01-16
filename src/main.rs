@@ -57,7 +57,7 @@ fn validate(plug_path: &Path) -> Result<(), String> {
 #[derive(Parser)]
 #[command(
     name = "plug",
-    version = "0.1.0",
+    version = "0.2.0",
     about = "Manage plug symlinks for explicit file dependencies"
 )]
 struct Args {
