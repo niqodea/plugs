@@ -110,8 +110,8 @@ The repository includes a `plug` command that simplifies plug management.
 **Download and extract**:
 
 ```sh
-wget https://github.com/niqodea/plugs/releases/download/v0.2.0/plugs-v0.2.0-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf plugs-v0.2.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/niqodea/plugs/releases/download/v0.3.0/plugs-v0.3.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf plugs-v0.3.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
 Then copy the `plug` binary to a directory in your `PATH`.
