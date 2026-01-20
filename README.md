@@ -59,11 +59,11 @@ The `._.` and `.~.` prefixes keep these files hidden but colocated with their pl
 
 **Benefits**:
 
-- **Explicit dependencies**: Plugs (committed to version control) declare "this file is needed here"
-- **Out-of-the-box discovery**: Fresh clones have dangling plugs; broken symlinks reveal missing dependencies before runtime
+- **Explicit dependencies**: Plugs declare "this file is needed here"; fresh clones have dangling symlinks that reveal missing dependencies before runtime
 - **Templating**: Sample files show exactly what each dependency should contain
 - **Flexible connection**: Connect to system files, user files, or create local copies; the plug stays the same
 - **Status visibility**: Easy to audit which dependencies are connected, disconnected, or broken
+- **Self-contained context**: Your editor's file tree becomes a complete map of everything the project touches
 
 **Git Configuration**:
 
